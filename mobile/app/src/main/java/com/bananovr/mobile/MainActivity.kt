@@ -30,6 +30,9 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener, HeadTra
     private lateinit var sensor3DButton:Button
     private lateinit var vrButton:Button
     private lateinit var vrView:VRView
+    private lateinit var connectButton:Button
+    private var transport:TrackingTransport?=null
+    private var pcIp="192.168.0.100"
     private lateinit var cameraExecutor:ExecutorService
     private lateinit var handLandmarker:HandLandmarkerHelper
     private lateinit var handProcessor:HandTrackingProcessor
@@ -58,6 +61,9 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener, HeadTra
         sensor3DButton=findViewById(R.id.sensor3DButton)
         vrButton=findViewById(R.id.vrButton)
         vrView=findViewById(R.id.vrView)
+        connectButton=findViewById(R.id.connectButton)
+        transport=TrackingTransport(this)
+        connectButton.setOnClickListener{if(transport?.connect(pcIp)==true)connectButton.text="PC: CONECTADO" else connectButton.text="PC: FALHA"}
         cameraExecutor=Executors.newSingleThreadExecutor()
         handLandmarker=HandLandmarkerHelper(this,this)
         handProcessor=HandTrackingProcessor()
@@ -122,10 +128,10 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener, HeadTra
     }
 
     override fun onError(message:String){analyzing.set(false);runOnUiThread{statusText.text="Tracking: $message"}}
-    override fun onHeadTrackingState(state:HeadTrackingState){runOnUiThread{labView.update(latestHands,state);sensor3DView.update(state);vrView.update(state)}}
+    override fun onHeadTrackingState(state:HeadTrackingState){runOnUiThread{labView.update(latestHands,state);sensor3DView.update(state);vrView.update(state)}; transport?.send(BananoVRPacket(System.nanoTime(),state,latestHands))}
 
     override fun onDestroy(){
-        handLandmarker.close();headTrackingManager.close();cameraExecutor.shutdown();super.onDestroy()
+        transport?.close();handLandmarker.close();headTrackingManager.close();cameraExecutor.shutdown();super.onDestroy()
     }
 
     private fun ImageProxy.toBitmap():Bitmap{
