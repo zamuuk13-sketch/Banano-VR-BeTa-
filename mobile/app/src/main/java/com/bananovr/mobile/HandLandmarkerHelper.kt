@@ -8,11 +8,7 @@ import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
 
-class HandLandmarkerHelper(
-    context: Context,
-    private val listener: Listener
-) : AutoCloseable {
-
+class HandLandmarkerHelper(context: Context, private val listener: Listener) : AutoCloseable {
     interface Listener {
         fun onResult(result: HandLandmarkerResult, inferenceTimeMs: Long)
         fun onError(message: String)
@@ -21,42 +17,28 @@ class HandLandmarkerHelper(
     private val landmarker: HandLandmarker
 
     init {
-        val baseOptions = BaseOptions.builder()
-            .setModelAssetPath(MODEL_NAME)
-            .build()
-
+        val base = BaseOptions.builder().setModelAssetPath(MODEL_NAME).build()
         val options = HandLandmarker.HandLandmarkerOptions.builder()
-            .setBaseOptions(baseOptions)
+            .setBaseOptions(base)
             .setNumHands(2)
             .setMinHandDetectionConfidence(0.5f)
             .setMinHandPresenceConfidence(0.5f)
             .setMinTrackingConfidence(0.5f)
             .setRunningMode(RunningMode.LIVE_STREAM)
-            .setResultListener { result, _ ->
-                listener.onResult(result, System.currentTimeMillis())
-            }
-            .setErrorListener { error ->
-                listener.onError(error.message ?: "Erro no Hand Landmarker")
-            }
+            .setResultListener { result, timestamp -> listener.onResult(result, timestamp) }
+            .setErrorListener { error -> listener.onError(error.message ?: "Erro no Hand Landmarker") }
             .build()
-
         landmarker = HandLandmarker.createFromOptions(context, options)
     }
 
     fun detectAsync(bitmap: Bitmap, timestampMs: Long) {
         try {
-            val mpImage = BitmapImageBuilder(bitmap).build()
-            landmarker.detectAsync(mpImage, timestampMs)
+            landmarker.detectAsync(BitmapImageBuilder(bitmap).build(), timestampMs)
         } catch (e: Exception) {
             listener.onError(e.message ?: "Falha ao analisar frame")
         }
     }
 
-    override fun close() {
-        landmarker.close()
-    }
-
-    companion object {
-        const val MODEL_NAME = "hand_landmarker.task"
-    }
+    override fun close() = landmarker.close()
+    companion object { const val MODEL_NAME = "hand_landmarker.task" }
 }
