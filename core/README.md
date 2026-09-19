@@ -2,13 +2,10 @@
 
 Núcleo compartilhado do projeto.
 
-Responsabilidades:
-- protocolo;
-- comunicação;
-- tracking;
-- sensores;
-- estado da conexão;
-- sincronização;
-- estruturas de dados.
+## Etapa 12
 
-O Core deverá permanecer independente da interface visual sempre que possível.
+A primeira fronteira real entre transporte e Core foi criada através de `TrackingReceiver`.
+
+O receptor entrega pacote bruto e metadados por callback, mantendo rede independente de Qt, Godot e SteamVR.
+
+Próximas evoluções: parser tipado, sincronização de relógio, reconexão e seleção automática USB/Wi-Fi.
