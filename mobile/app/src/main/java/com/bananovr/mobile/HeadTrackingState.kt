@@ -10,17 +10,22 @@ data class HeadTrackingState(
     val rollDegrees: Float,
     val gyro: Vector3,
     val accelerometer: Vector3,
+    val position: Vector3,
+    val velocity: Vector3,
+    val linearAcceleration: Vector3,
     val sensorTimestampNanos: Long,
     val updateRateHz: Float,
     val sensorName: String,
     val available: Boolean,
+    val positionTrackingAvailable: Boolean,
     val recentered: Boolean
 ) {
     companion object {
         fun empty() = HeadTrackingState(
-            FloatArray(9), floatArrayOf(0f, 0f, 0f, 1f),
-            0f, 0f, 0f, Vector3(0f,0f,0f), Vector3(0f,0f,0f),
-            0L, 0f, "Indisponível", false, false
+            FloatArray(9), floatArrayOf(0f,0f,0f,1f),
+            0f,0f,0f, Vector3(0f,0f,0f), Vector3(0f,0f,0f),
+            Vector3(0f,0f,0f), Vector3(0f,0f,0f), Vector3(0f,0f,0f),
+            0L,0f,"Indisponível",false,false,false
         )
     }
 }
