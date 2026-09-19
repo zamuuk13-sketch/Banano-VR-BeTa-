@@ -1,51 +1,28 @@
 # BananoVR — Protocolo
 
-Documento conceitual do protocolo entre mobile e PC.
+## Versão 1
 
-## Princípios
-- baixa latência;
-- mensagens pequenas;
-- timestamps;
-- identificação do dispositivo;
-- reconexão;
-- evolução compatível.
+O Android envia mensagens JSON pelo UDP.
 
-## Dados planejados
+### Portas
+- Tracking: `27182/UDP`
+- Discovery planejada: `27183/UDP`
+
+### Cabeçalho lógico
+```json
+{"type":"bananovr.tracking","version":1,"timestampNanos":0}
+```
 
 ### Head
-- posição;
-- rotação;
-- velocidade quando disponível.
+Yaw, pitch, roll, posição estimada, velocidade, quaternion e frequência do sensor.
 
-### Mãos
-- palma;
-- pulso;
-- articulações dos dedos;
-- confiança do tracking quando fornecida pelo SDK.
+### Hands
+Cada mão pode conter lado, confiança, gesto, timestamp e 21 landmarks XYZ.
 
-### IMU
-- giroscópio;
-- acelerômetro;
-- orientação;
-- timestamp.
+### Observação
+A posição mobile atual é estimada por integração de aceleração e pode sofrer drift. O PC deve tratá-la como posição estimada até existir posicionamento visual/absoluto.
 
-### Device
-- bateria;
-- conexão;
-- capacidades;
-- timestamp.
-
-## Pacote conceitual
-
-~~~text
-BANANOVR_PACKET
-├── VERSION
-├── TIMESTAMP
-├── HEAD
-├── LEFT_HAND
-├── RIGHT_HAND
-├── IMU
-└── DEVICE
-~~~
-
-O formato definitivo de serialização será definido durante a implementação.
+### Pipeline
+```text
+Mobile Sensor/Camera → BananoVRPacket v1 → UDP → TrackingReceiver → Core → Qt / Godot / SteamVR
+```
