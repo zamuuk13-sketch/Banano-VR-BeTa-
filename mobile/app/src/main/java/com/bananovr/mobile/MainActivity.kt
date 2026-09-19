@@ -23,9 +23,11 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener, HeadTra
     private lateinit var previewView:PreviewView
     private lateinit var overlay:HandLandmarkOverlay
     private lateinit var labView:TrackingLabView
+    private lateinit var sensor3DView:Sensor3DView
     private lateinit var statusText:TextView
     private lateinit var cameraButton:Button
     private lateinit var recenterButton:Button
+    private lateinit var sensor3DButton:Button
     private lateinit var cameraExecutor:ExecutorService
     private lateinit var handLandmarker:HandLandmarkerHelper
     private lateinit var handProcessor:HandTrackingProcessor
@@ -47,14 +49,17 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener, HeadTra
         previewView=findViewById(R.id.cameraPreview)
         overlay=findViewById(R.id.handOverlay)
         labView=findViewById(R.id.trackingLab)
+        sensor3DView=findViewById(R.id.sensor3DView)
         statusText=findViewById(R.id.statusText)
         cameraButton=findViewById(R.id.cameraButton)
         recenterButton=findViewById(R.id.recenterButton)
+        sensor3DButton=findViewById(R.id.sensor3DButton)
         cameraExecutor=Executors.newSingleThreadExecutor()
         handLandmarker=HandLandmarkerHelper(this,this)
         handProcessor=HandTrackingProcessor()
         headTrackingManager=HeadTrackingManager(this,this)
         recenterButton.setOnClickListener{headTrackingManager.recenter()}
+        sensor3DButton.setOnClickListener{sensor3DView.visibility=android.view.View.VISIBLE;labView.visibility=android.view.View.GONE;sensor3DView.start()}
         cameraButton.setOnClickListener{
             if(hasCameraPermission()){
                 lensFacing=if(lensFacing==CameraSelector.LENS_FACING_BACK)CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
@@ -66,8 +71,8 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener, HeadTra
         }
     }
 
-    override fun onResume(){super.onResume();headTrackingManager.start()}
-    override fun onPause(){headTrackingManager.stop();super.onPause()}
+    override fun onResume(){super.onResume();headTrackingManager.start();sensor3DView.start()}
+    override fun onPause(){sensor3DView.stop();headTrackingManager.stop();super.onPause()}
 
     private fun hasCameraPermission()=ContextCompat.checkSelfPermission(this,Manifest.permission.CAMERA)==PackageManager.PERMISSION_GRANTED
 
@@ -112,7 +117,7 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener, HeadTra
     }
 
     override fun onError(message:String){analyzing.set(false);runOnUiThread{statusText.text="Tracking: $message"}}
-    override fun onHeadTrackingState(state:HeadTrackingState){runOnUiThread{labView.update(latestHands,state)}}
+    override fun onHeadTrackingState(state:HeadTrackingState){runOnUiThread{labView.update(latestHands,state);sensor3DView.update(state)}}
 
     override fun onDestroy(){
         handLandmarker.close();headTrackingManager.close();cameraExecutor.shutdown();super.onDestroy()
