@@ -9,26 +9,25 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageProxy
-import androidx.camera.core.Preview
+import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
-import java.util.concurrent.ExecutorService
+import java.util.Locale
 import java.util.concurrent.Executors
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.atomic.AtomicBoolean
 
-class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener {
+class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener, HeadTrackingManager.Listener {
     private lateinit var previewView: PreviewView
     private lateinit var overlay: HandLandmarkOverlay
     private lateinit var statusText: TextView
     private lateinit var cameraButton: Button
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var handLandmarker: HandLandmarkerHelper
-
+    private lateinit var handProcessor: HandTrackingProcessor
+    private lateinit var headTrackingManager: HeadTrackingManager
     private val analyzing = AtomicBoolean(false)
     private var lensFacing = CameraSelector.LENS_FACING_BACK
 
@@ -50,13 +49,13 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener {
         cameraButton = findViewById(R.id.cameraButton)
         cameraExecutor = Executors.newSingleThreadExecutor()
         handLandmarker = HandLandmarkerHelper(this, this)
+        handProcessor = HandTrackingProcessor()
+        headTrackingManager = HeadTrackingManager(this, this)
 
         cameraButton.setOnClickListener {
             if (hasCameraPermission()) {
-                lensFacing =
-                    if (lensFacing == CameraSelector.LENS_FACING_BACK)
-                        CameraSelector.LENS_FACING_FRONT
-                    else CameraSelector.LENS_FACING_BACK
+                lensFacing = if (lensFacing == CameraSelector.LENS_FACING_BACK)
+                    CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
                 startCamera()
             } else cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
@@ -68,24 +67,31 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener {
         }
     }
 
-    private fun hasCameraPermission(): Boolean =
-        ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) ==
-            PackageManager.PERMISSION_GRANTED
+    override fun onResume() {
+        super.onResume()
+        headTrackingManager.start()
+    }
+
+    override fun onPause() {
+        headTrackingManager.stop()
+        super.onPause()
+    }
+
+    private fun hasCameraPermission() =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
 
     private fun startCamera() {
-        val providerFuture = ProcessCameraProvider.getInstance(this)
-        providerFuture.addListener({
-            val cameraProvider = providerFuture.get()
+        val future = ProcessCameraProvider.getInstance(this)
+        future.addListener({
+            val provider = future.get()
             val selector = CameraSelector.Builder().requireLensFacing(lensFacing).build()
-
-            if (!cameraProvider.hasCamera(selector)) {
+            if (!provider.hasCamera(selector)) {
                 statusText.text = "Esta câmera não está disponível neste celular."
                 return@addListener
             }
 
             val preview = Preview.Builder().build()
             preview.setSurfaceProvider(previewView.surfaceProvider)
-
             val analysis = ImageAnalysis.Builder()
                 .setTargetResolution(Size(640, 480))
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -100,31 +106,38 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener {
                 try {
                     val bitmap = imageProxy.toBitmap()
                     handLandmarker.detectAsync(bitmap, imageProxy.imageInfo.timestamp / 1_000_000L)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     analyzing.set(false)
-                    imageProxy.close()
                 } finally {
                     imageProxy.close()
                 }
             }
 
-            cameraProvider.unbindAll()
-            cameraProvider.bindToLifecycle(this, selector, preview, analysis)
-            statusText.text =
-                if (lensFacing == CameraSelector.LENS_FACING_BACK)
-                    "Tracking ativo • câmera traseira"
-                else "Tracking ativo • câmera frontal"
+            provider.unbindAll()
+            provider.bindToLifecycle(this, selector, preview, analysis)
+            statusText.text = if (lensFacing == CameraSelector.LENS_FACING_BACK)
+                "Tracking ativo • câmera traseira" else "Tracking ativo • câmera frontal"
             cameraButton.text = "TROCAR CÂMERA"
         }, ContextCompat.getMainExecutor(this))
     }
 
     override fun onResult(result: HandLandmarkerResult, inferenceTimeMs: Long) {
         analyzing.set(false)
+        val trackingState = handProcessor.process(result, System.nanoTime())
         runOnUiThread {
-            overlay.setResult(result)
-            statusText.text = if (result.landmarks().isEmpty())
-                "Tracking ativo • procurando mãos"
-            else "Tracking ativo • " + result.landmarks().size + " mão(s)"
+            overlay.setState(trackingState)
+            val head = headTrackingManager.currentState()
+            val hands = trackingState.hands
+            statusText.text = if (hands.isEmpty()) {
+                String.format(Locale.US, "Mãos: 0 • Cabeça: %s • %.0f Hz",
+                    if (head.available) "OK" else "OFF", head.updateRateHz)
+            } else {
+                val gestures = hands.joinToString(" + ") { h -> h.side.toString() + ":" + h.gesture.toString() }
+                String.format(Locale.US,
+                    "Mãos: %d • %s\nCabeça: %.0f Hz • Y %.0f° P %.0f° R %.0f°",
+                    hands.size, gestures, head.updateRateHz,
+                    head.yawDegrees, head.pitchDegrees, head.rollDegrees)
+            }
         }
     }
 
@@ -133,8 +146,11 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener {
         runOnUiThread { statusText.text = "Tracking: $message" }
     }
 
+    override fun onHeadTrackingState(state: HeadTrackingState) = Unit
+
     override fun onDestroy() {
         handLandmarker.close()
+        headTrackingManager.close()
         cameraExecutor.shutdown()
         super.onDestroy()
     }
