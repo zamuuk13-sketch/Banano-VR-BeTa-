@@ -28,6 +28,8 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener, HeadTra
     private lateinit var cameraButton:Button
     private lateinit var recenterButton:Button
     private lateinit var sensor3DButton:Button
+    private lateinit var vrButton:Button
+    private lateinit var vrView:VRView
     private lateinit var cameraExecutor:ExecutorService
     private lateinit var handLandmarker:HandLandmarkerHelper
     private lateinit var handProcessor:HandTrackingProcessor
@@ -54,12 +56,15 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener, HeadTra
         cameraButton=findViewById(R.id.cameraButton)
         recenterButton=findViewById(R.id.recenterButton)
         sensor3DButton=findViewById(R.id.sensor3DButton)
+        vrButton=findViewById(R.id.vrButton)
+        vrView=findViewById(R.id.vrView)
         cameraExecutor=Executors.newSingleThreadExecutor()
         handLandmarker=HandLandmarkerHelper(this,this)
         handProcessor=HandTrackingProcessor()
         headTrackingManager=HeadTrackingManager(this,this)
         recenterButton.setOnClickListener{headTrackingManager.recenter()}
-        sensor3DButton.setOnClickListener{sensor3DView.visibility=android.view.View.VISIBLE;labView.visibility=android.view.View.GONE;sensor3DView.start()}
+        sensor3DButton.setOnClickListener{sensor3DView.visibility=android.view.View.VISIBLE;vrView.visibility=android.view.View.GONE;labView.visibility=android.view.View.GONE;sensor3DView.start()}
+        vrButton.setOnClickListener{vrView.visibility=android.view.View.VISIBLE;sensor3DView.visibility=android.view.View.GONE;labView.visibility=android.view.View.GONE;sensor3DView.stop()}
         cameraButton.setOnClickListener{
             if(hasCameraPermission()){
                 lensFacing=if(lensFacing==CameraSelector.LENS_FACING_BACK)CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
@@ -117,7 +122,7 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener, HeadTra
     }
 
     override fun onError(message:String){analyzing.set(false);runOnUiThread{statusText.text="Tracking: $message"}}
-    override fun onHeadTrackingState(state:HeadTrackingState){runOnUiThread{labView.update(latestHands,state);sensor3DView.update(state)}}
+    override fun onHeadTrackingState(state:HeadTrackingState){runOnUiThread{labView.update(latestHands,state);sensor3DView.update(state);vrView.update(state)}}
 
     override fun onDestroy(){
         handLandmarker.close();headTrackingManager.close();cameraExecutor.shutdown();super.onDestroy()
