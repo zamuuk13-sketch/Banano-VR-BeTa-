@@ -22,14 +22,17 @@ import java.util.concurrent.atomic.AtomicBoolean
 class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener, HeadTrackingManager.Listener {
     private lateinit var previewView:PreviewView
     private lateinit var overlay:HandLandmarkOverlay
+    private lateinit var labView:TrackingLabView
     private lateinit var statusText:TextView
     private lateinit var cameraButton:Button
+    private lateinit var recenterButton:Button
     private lateinit var cameraExecutor:ExecutorService
     private lateinit var handLandmarker:HandLandmarkerHelper
     private lateinit var handProcessor:HandTrackingProcessor
     private lateinit var headTrackingManager:HeadTrackingManager
     private val analyzing=AtomicBoolean(false)
     private var lensFacing=CameraSelector.LENS_FACING_BACK
+    private var latestHands:HandTrackingState?=null
 
     private val permissionLauncher=registerForActivityResult(ActivityResultContracts.RequestPermission()){granted->
         if(granted)startCamera() else {
@@ -43,12 +46,15 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener, HeadTra
         setContentView(R.layout.activity_main)
         previewView=findViewById(R.id.cameraPreview)
         overlay=findViewById(R.id.handOverlay)
+        labView=findViewById(R.id.trackingLab)
         statusText=findViewById(R.id.statusText)
         cameraButton=findViewById(R.id.cameraButton)
+        recenterButton=findViewById(R.id.recenterButton)
         cameraExecutor=Executors.newSingleThreadExecutor()
         handLandmarker=HandLandmarkerHelper(this,this)
         handProcessor=HandTrackingProcessor()
         headTrackingManager=HeadTrackingManager(this,this)
+        recenterButton.setOnClickListener{headTrackingManager.recenter()}
         cameraButton.setOnClickListener{
             if(hasCameraPermission()){
                 lensFacing=if(lensFacing==CameraSelector.LENS_FACING_BACK)CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
@@ -93,8 +99,10 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener, HeadTra
     override fun onResult(result:HandLandmarkerResult,inferenceTimeMs:Long){
         analyzing.set(false)
         val tracking=handProcessor.process(result,System.nanoTime())
+        latestHands=tracking
         runOnUiThread{
             overlay.setState(tracking)
+            labView.update(latestHands,headTrackingManager.currentState())
             val h=headTrackingManager.currentState()
             statusText.text=String.format(Locale.US,
                 "Mãos: %d • Cabeça: %s • %.0f Hz\nY %.0f° P %.0f° R %.0f° • Pos %.2f %.2f %.2f",
@@ -104,7 +112,7 @@ class MainActivity : AppCompatActivity(), HandLandmarkerHelper.Listener, HeadTra
     }
 
     override fun onError(message:String){analyzing.set(false);runOnUiThread{statusText.text="Tracking: $message"}}
-    override fun onHeadTrackingState(state:HeadTrackingState)=Unit
+    override fun onHeadTrackingState(state:HeadTrackingState){runOnUiThread{labView.update(latestHands,state)}}
 
     override fun onDestroy(){
         handLandmarker.close();headTrackingManager.close();cameraExecutor.shutdown();super.onDestroy()
