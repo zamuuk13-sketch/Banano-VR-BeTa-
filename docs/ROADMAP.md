@@ -6,23 +6,23 @@
 - [x] Estrutura modular
 
 ## Fase 1 — Mobile
-- [ ] Base Android
-- [ ] Permissões
-- [ ] Câmera
-- [ ] Hand Tracking
-- [ ] Sensores
-- [ ] Tracking Lab
-- [ ] Teste 3D
-- [ ] Modo VR
-- [ ] USB
-- [ ] Wi-Fi
+- [x] Base Android
+- [x] Permissões
+- [x] Câmera
+- [x] Hand Tracking
+- [x] Sensores
+- [x] Tracking Lab
+- [x] Teste 3D
+- [x] Modo VR
+- [x] Comunicação de tracking
+- [ ] Wi-Fi discovery automático
 
 ## Fase 2 — PC
-- [ ] Qt/C++
-- [ ] BananoVR Core
-- [ ] Detecção do celular
-- [ ] Recepção de tracking
-- [ ] Estado da conexão
+- [x] Core de recepção UDP
+- [x] Detecção da origem do celular
+- [x] Recepção de tracking
+- [x] Estado básico da conexão
+- [ ] Qt/C++ UI
 - [ ] Configurações
 
 ## Fase 3 — 3D
