@@ -60,4 +60,16 @@
         android:layout_margin="16dp"
         android:text="RECENTER" />
 
+    <com.bananovr.mobile.Sensor3DView
+        android:id="@+id/sensor3DView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+    <Button
+        android:id="@+id/sensor3DButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="24dp"
+        android:text="3D SENSOR" />
 </FrameLayout>
